@@ -8,14 +8,18 @@
     <script src="tinymce/tinymce.min.js"></script>
     <script src="js/clipboard.min.js"></script>
     <script src="js/jquery-3.2.1.slim.min.js"></script>
-    <script src="js/to-markdown.js"></script>
+    <script src="js/turndown.js"></script>
+    <script src="js/turndown-plugin-gfm.js"></script>
 </head>
 <body>
 
 <div class="row cf">
     <div class="col">
         <div class="header">
-            <h2><a href="https://github.com/phodal/2md">2MD</a></h2>
+            <label>Code Language:</label>
+            <input id="codeLanguage" type="text" name="codeLanguage" />
+            <label>Code first line indent:</label>
+            <input id="codeFirstLineIndent" name="codeFirstLineIndent" type="number" min="0" max="10" step="1"/>
         </div>
         <textarea id="input"></textarea>
     </div>
@@ -43,26 +47,51 @@
     setup: function (editor) {
       editor.on('change', function (e) {
         var content = tinymce.get('input').getContent();
-        var md = toMarkdown(content, {
-          gfm: true,
-          converters: [{
-            filter: ['pre', 'figure', 'figure', 'figcaption', 'form', 'span', 'header', 'button', 'nav', 'section', 'iframe', 'footer', 'header', 'input', 'aside', 'article', 'time', 'label', 'dd', 'dl'],
-            replacement: function (content) {
-              return content
-            }
-          }, {
-            filter: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div'],
-
-            replacement: function(innerHTML, node) {
-              var hLevel = node.tagName.charAt(1);
-              var hPrefix = '';
-              for(var i = 0; i < hLevel; i++) {
-                hPrefix += '#';
-              }
-              return '\n' + hPrefix + ' ' + innerHTML + '\n\n';
-            }
-          }]
+        var gfm = turndownPluginGfm.gfm;
+        var turndownService = new TurndownService({ codeBlockStyle: 'fenced' });
+        var codeLanguage = document.getElementById("codeLanguage").value;
+        var codeFirstLineIndent = document.getElementById("codeFirstLineIndent").value;
+        var indentSpaces = '';
+        for(var i=0; i<codeFirstLineIndent; i++) {
+          indentSpaces += ' ';
+        }
+        turndownService.use(gfm);
+        turndownService.addRule('removeStyleFromCode',{
+          filter: function (node, options) {
+            return (
+              node.parentNode.nodeName === 'CODE' &&
+              (node.nodeName === 'EM' || node.nodeName === 'STRONG')
+            )
+          },
+          replacement: function (content) {
+            return content;
+          }
         });
+        turndownService.addRule('code',{
+          filter: ['code'],
+          replacement: function (content) {
+            return '```' + codeLanguage + '\n' + indentSpaces + content + '\n' + '```';
+          }
+        });
+        turndownService.addRule('filter1',{
+          filter: ['pre', 'figure', 'figure', 'figcaption', 'form', 'span', 'header', 'button', 'nav', 'section', 'iframe', 'footer', 'header', 'input', 'aside', 'article', 'time', 'label', 'dd', 'dl'],
+          replacement: function (content) {
+            return content
+          }
+        });
+        turndownService.addRule('filter2',{
+          filter: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div'],
+
+          replacement: function(innerHTML, node) {
+            var hLevel = node.tagName.charAt(1);
+            var hPrefix = '';
+            for(var i = 0; i < hLevel; i++) {
+              hPrefix += '#';
+            }
+            return '\n' + hPrefix + ' ' + innerHTML + '\n\n';
+          }
+        });
+        var md = turndownService.turndown(content);
         $("#output").val(md);
       });
     }
