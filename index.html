@@ -55,6 +55,7 @@
           indentSpaces += ' ';
         }
         turndownService.use(gfm);
+        turndownService.keep('video');
         turndownService.addRule('removeStyleFromCode',{
           filter: function (node, options) {
             return (
